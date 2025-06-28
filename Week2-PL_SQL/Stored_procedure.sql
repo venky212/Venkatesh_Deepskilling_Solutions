@@ -1,87 +1,77 @@
 
 ---Scenario 1: Process Monthly Interest for Savings Accounts
-CREATE OR REPLACE PROCEDURE ProcessMonthlyInterest
-IS
+CREATE OR REPLACE PROCEDURE ProcessMonthlyInterest IS
 BEGIN
-  UPDATE Accounts
-  SET Balance = Balance + (Balance * 0.01),
-      LastModified = SYSDATE
-  WHERE AccountType = 'SAVINGS';
+  FOR acc IN (
+    SELECT AccountID, Balance 
+    FROM Accounts 
+    WHERE AccountType = 'Savings'
+  ) LOOP
+    UPDATE Accounts
+    SET Balance = Balance + (acc.Balance * 0.01),
+        LastModified = SYSDATE
+    WHERE AccountID = acc.AccountID;
 
-  COMMIT;
-EXCEPTION
-  WHEN OTHERS THEN
-    ROLLBACK;
-    INSERT INTO LOG_ERRORS (error_message, procedure_name)
-    VALUES (SQLERRM, 'ProcessMonthlyInterest');
-    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('Interest applied to Account ' || acc.AccountID || 
+                         ', New Balance: ' || (acc.Balance * 1.01));
+  END LOOP;
 END;
+/
+
 
 ---Scenario 2: Update Employee Bonus by Department
-CREATE OR REPLACE PROCEDURE UpdateEmployeeBonus(
-  p_department IN VARCHAR2,
-  p_bonus_pct  IN NUMBER
-)
-IS
+CREATE OR REPLACE PROCEDURE UpdateEmployeeBonus (
+  dept_name IN VARCHAR2,
+  bonus_percent IN NUMBER
+) IS
 BEGIN
-  UPDATE Employees
-  SET Salary = Salary + (Salary * p_bonus_pct / 100)
-  WHERE Department = p_department;
+  FOR emp IN (
+    SELECT EmployeeID, Salary 
+    FROM Employees 
+    WHERE Department = dept_name
+  ) LOOP
+    UPDATE Employees
+    SET Salary = Salary + (emp.Salary * bonus_percent / 100)
+    WHERE EmployeeID = emp.EmployeeID;
 
-  IF SQL%ROWCOUNT = 0 THEN
-    RAISE_APPLICATION_ERROR(-20003, 'No employees found in the specified department.');
-  END IF;
-
-  COMMIT;
-EXCEPTION
-  WHEN OTHERS THEN
-    ROLLBACK;
-    INSERT INTO LOG_ERRORS (error_message, procedure_name)
-    VALUES (SQLERRM, 'UpdateEmployeeBonus');
-    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('Bonus applied to Employee ' || emp.EmployeeID ||
+                         ', New Salary: ' || (emp.Salary + emp.Salary * bonus_percent / 100));
+  END LOOP;
 END;
+/
+
 
 ---Scenario 3: Transfer Funds Between Customer Accounts
-CREATE OR REPLACE PROCEDURE TransferFunds(
-  p_from_account_id IN NUMBER,
-  p_to_account_id   IN NUMBER,
-  p_amount          IN NUMBER
-)
-IS
-  v_balance NUMBER;
+CREATE OR REPLACE PROCEDURE TransferFunds (
+  from_account IN NUMBER,
+  to_account IN NUMBER,
+  amount IN NUMBER
+) IS
+  from_balance NUMBER;
 BEGIN
-  SELECT Balance INTO v_balance
+ 
+  SELECT Balance INTO from_balance
   FROM Accounts
-  WHERE AccountID = p_from_account_id
-  FOR UPDATE;
+  WHERE AccountID = from_account;
 
-  IF v_balance < p_amount THEN
-    RAISE_APPLICATION_ERROR(-20004, 'Insufficient balance in source account');
+  IF from_balance < amount THEN
+    RAISE_APPLICATION_ERROR(-20001, 'Insufficient balance in source account.');
+  ELSE
+  
+    UPDATE Accounts
+    SET Balance = Balance - amount,
+        LastModified = SYSDATE
+    WHERE AccountID = from_account;
+
+    
+    UPDATE Accounts
+    SET Balance = Balance + amount,
+        LastModified = SYSDATE
+    WHERE AccountID = to_account;
+
+    DBMS_OUTPUT.PUT_LINE('Transferred ' || amount || 
+                         ' from Account ' || from_account || 
+                         ' to Account ' || to_account);
   END IF;
-
-  
-  UPDATE Accounts
-  SET Balance = Balance - p_amount,
-      LastModified = SYSDATE
-  WHERE AccountID = p_from_account_id;
-
-  UPDATE Accounts
-  SET Balance = Balance + p_amount,
-      LastModified = SYSDATE
-  WHERE AccountID = p_to_account_id;
-
-  
-  INSERT INTO Transactions (TransactionID, AccountID, TransactionDate, Amount, TransactionType)
-  VALUES (Transactions_seq.NEXTVAL, p_from_account_id, SYSDATE, p_amount, 'DEBIT');
-
-  INSERT INTO Transactions (TransactionID, AccountID, TransactionDate, Amount, TransactionType)
-  VALUES (Transactions_seq.NEXTVAL, p_to_account_id, SYSDATE, p_amount, 'CREDIT');
-
-  COMMIT;
-EXCEPTION
-  WHEN OTHERS THEN
-    ROLLBACK;
-    INSERT INTO LOG_ERRORS (error_message, procedure_name)
-    VALUES (SQLERRM, 'TransferFunds');
-    COMMIT;
 END;
+/
