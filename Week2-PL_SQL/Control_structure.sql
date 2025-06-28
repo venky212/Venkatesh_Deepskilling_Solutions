@@ -1,39 +1,58 @@
 ---Scenario 1: Apply Discount for Senior Customers
 BEGIN
-  FOR cust_rec IN (SELECT customer_id FROM customers WHERE age > 60) LOOP
-    UPDATE loans
-    SET interest_rate = interest_rate - 1
-    WHERE customer_id = cust_rec.customer_id;
+  FOR cust IN (
+    SELECT c.CustomerID, c.DOB, l.LoanID, l.InterestRate
+    FROM Customers c
+    JOIN Loans l ON c.CustomerID = l.CustomerID
+  )
+  LOOP
+    IF FLOOR(MONTHS_BETWEEN(SYSDATE, cust.DOB) / 12) > 60 THEN
+      UPDATE Loans
+      SET InterestRate = InterestRate - 1
+      WHERE LoanID = cust.LoanID;
+      
+      DBMS_OUTPUT.PUT_LINE('1% discount applied to Customer ID: ' || cust.CustomerID || 
+                           ', New Interest Rate: ' || (cust.InterestRate - 1));
+    END IF;
   END LOOP;
-  COMMIT;
 END;
+/
+
 
 
 ---Scenario 2: Promote to VIP Based on Balance
+ALTER TABLE Customers ADD IsVIP VARCHAR2(5);
 BEGIN
-  FOR cust_rec IN (SELECT customer_id FROM customers WHERE balance > 10000) LOOP
-    UPDATE customers
-    SET IsVIP = 'TRUE'
-    WHERE customer_id = cust_rec.customer_id;
+  FOR cust IN (SELECT CustomerID, Balance FROM Customers) LOOP
+    IF cust.Balance > 10000 THEN
+      UPDATE Customers
+      SET IsVIP = 'TRUE'
+      WHERE CustomerID = cust.CustomerID;
+
+      DBMS_OUTPUT.PUT_LINE('Customer ' || cust.CustomerID || ' promoted to VIP.');
+    ELSE
+      UPDATE Customers
+      SET IsVIP = 'FALSE'
+      WHERE CustomerID = cust.CustomerID;
+    END IF;
   END LOOP;
-  COMMIT;
 END;
+/
+
 
 ---Scenario 3: Send Reminders for Loans Due Soon
 
-DECLARE
-  v_due_date loans.due_date%TYPE;
-  v_customer_id loans.customer_id%TYPE;
-  v_name customers.name%TYPE;
 BEGIN
   FOR loan_rec IN (
-    SELECT l.customer_id, l.due_date, c.name
-    FROM loans l
-    JOIN customers c ON l.customer_id = c.customer_id
-    WHERE l.due_date BETWEEN SYSDATE AND SYSDATE + 30
-  ) LOOP
-    DBMS_OUTPUT.PUT_LINE('Reminder: Loan for customer ' || loan_rec.name || 
-                         ' (ID: ' || loan_rec.customer_id || 
-                         ') is due on ' || TO_CHAR(loan_rec.due_date, 'DD-MON-YYYY'));
+    SELECT l.LoanID, l.CustomerID, l.EndDate, c.Name
+    FROM Loans l
+    JOIN Customers c ON l.CustomerID = c.CustomerID
+    WHERE l.EndDate BETWEEN SYSDATE AND SYSDATE + 30
+  )
+  LOOP
+    DBMS_OUTPUT.PUT_LINE('Reminder: Dear ' || loan_rec.Name ||
+                         ', your loan (ID: ' || loan_rec.LoanID ||
+                         ') is due on ' || TO_CHAR(loan_rec.EndDate, 'DD-Mon-YYYY') || '.');
   END LOOP;
 END;
+/
