@@ -1,0 +1,44 @@
+Difference between JPA, Hibernate and Spring Data JPA
+
+Overview Table:
+
+| Feature              | JPA (Java Persistence API)               | Hibernate                          | Spring Data JPA                        |
+|----------------------|------------------------------------------|------------------------------------|----------------------------------------|
+| Type                 | Specification / Standard API             | Implementation of JPA              | Framework on top of JPA (and Hibernate)|
+| Provided By          | Oracle (Java EE / Jakarta EE)            | Red Hat                            | Spring Framework Team                  |
+| What it Does         | Defines how to persist Java objects      | Implements JPA & adds features     | Simplifies JPA-based repository usage  |
+| Boilerplate Code     | High                                     | Medium                             | Very Low                               |
+| Ease of Use          | Low                                      | Medium                             | High                                   |
+| Custom Queries       | JPQL                                     | HQL + Native SQL                   | Method name parsing, JPQL, Native SQL  |
+| Integration          | Needs implementation (e.g., Hibernate)   | Built-in JPA + custom features     | Uses Hibernate (or other JPA provider) |
+| Common Use           | Abstract ORM API                         | Used for core ORM                  | Used in Spring Boot/Spring apps        |
+
+Detailed Explanation:
+
+1. JPA (Java Persistence API)
+- JPA is a specification.
+- It defines how Java objects map to database tables.
+- It needs a provider (like Hibernate) to work.
+- Defines annotations: @Entity, @Id, etc., and APIs like EntityManager.
+
+2. Hibernate
+- A popular JPA provider and ORM tool.
+- Implements JPA and adds extra features (e.g., HQL, caching).
+- Provides both JPA and native APIs (SessionFactory, Session, etc).
+
+3. Spring Data JPA
+- Built on top of JPA and Hibernate.
+- Reduces boilerplate by using Spring Repositories.
+- Supports derived queries, @Query annotations, and native queries.
+- Integrated with Spring Boot, widely used in modern applications.
+
+Example Without Spring Data JPA (using only JPA + Hibernate):
+EntityManager em = entityManagerFactory.createEntityManager();
+TypedQuery<User> query = em.createQuery("SELECT u FROM User u", User.class);
+List<User> users = query.getResultList();
+
+Example With Spring Data JPA:
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByEmail(String email);
+}
+
